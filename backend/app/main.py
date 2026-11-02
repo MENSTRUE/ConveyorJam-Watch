@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import math
 import os
+import subprocess
+import shutil
 import sqlite3
 import threading
 import time
@@ -322,42 +324,64 @@ async def analyze_image(file: UploadFile = File(...)):
 
 
 @app.post("/api/v1/analyze/video")
-async def analyze_video(file: UploadFile = File(...), max_seconds: float = Form(25), frame_stride: int = Form(FRAME_STRIDE)):
+async def analyze_video(
+    file: UploadFile = File(...),
+    max_seconds: float = Form(25),
+    frame_stride: int = Form(FRAME_STRIDE),
+):
     ensure_media(file.filename, {".mp4", ".avi", ".mov", ".mkv"}, file.content_type or "")
     if not (1 <= max_seconds <= MAX_VIDEO_SECONDS):
         raise HTTPException(422, f"max_seconds must be 1-{MAX_VIDEO_SECONDS}")
     if not 1 <= frame_stride <= 12:
         raise HTTPException(422, "frame_stride must be 1-12")
+
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if ffmpeg_bin is None:
+        raise HTTPException(503, "FFmpeg not found in PATH. Install FFmpeg with libx264 to export browser-playable video.")
+
     raw = await read_upload(file, MAX_VIDEO_BYTES)
     suffix = Path(file.filename or "video.mp4").suffix.lower()
-    upload_path = DATA_DIR / (uuid.uuid4().hex[:16] + suffix)
-    device = resolved_device()
-    model = get_model()
-    upload_path.write_bytes(raw)
-    cap = cv2.VideoCapture(str(upload_path))
-    writer = None
-    start = time.perf_counter()
-    output_name = uuid.uuid4().hex[:16] + ".mp4"
+    job_id = uuid.uuid4().hex[:16]
+    upload_path = DATA_DIR / f"{job_id}_upload{suffix}"
+    intermediate_path = DATA_DIR / f"{job_id}_tracking_mp4v.mp4"
+    output_name = f"{job_id}.mp4"
     output_path = DATA_DIR / output_name
+
+    device = resolved_device()
+    # Verify the champion exists before creating any runtime artifacts.
+    get_model()
+    upload_path.write_bytes(raw)
+    cap = None
+    writer = None
+    finished = False
+    start = time.perf_counter()
+
     try:
+        cap = cv2.VideoCapture(str(upload_path))
         if not cap.isOpened():
             raise HTTPException(422, "Video decoding failed")
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        if fps <= 0 or width <= 0 or height <= 0 or width * height > 9_000_000:
-            raise HTTPException(422, "Invalid FPS or dimensions")
-        writer = cv2.VideoWriter(str(output_path), cv2.VideoWriter_fourcc(*"mp4v"), max(1.0, fps / frame_stride), (width, height))
+        if not math.isfinite(fps) or fps <= 0 or width <= 0 or height <= 0 or width * height > 9_000_000:
+            raise HTTPException(422, "Invalid FPS or video dimensions")
+
+        output_fps = max(1.0, fps / frame_stride)
+        writer = cv2.VideoWriter(
+            str(intermediate_path), cv2.VideoWriter_fourcc(*"mp4v"), output_fps, (width, height)
+        )
         if not writer.isOpened():
-            raise HTTPException(500, "MP4 encoder unavailable")
-        engine = DwellEngine(CONFIG.model_copy(deep=True), width, height)
+            raise HTTPException(500, "Intermediate MP4 encoder unavailable")
+
+        config_snapshot = CONFIG.model_copy(deep=True)
+        engine = DwellEngine(config_snapshot, width, height)
         frame_index = 0
         processed = 0
         observations = 0
         total_frames = min(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or int(fps * max_seconds), int(fps * max_seconds))
-        # An isolated YOLO object prevents tracking IDs from being shared across requests.
         from ultralytics import YOLO
         tracking_model = YOLO(str(MODEL_PATH))
+
         with _model_lock:
             while frame_index < total_frames:
                 ok, frame = cap.read()
@@ -367,27 +391,76 @@ async def analyze_video(file: UploadFile = File(...), max_seconds: float = Form(
                 frame_index += 1
                 if i % frame_stride:
                     continue
-                result = tracking_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=CONFIDENCE, imgsz=640, device=device, verbose=False)[0]
-                obj = boxes_from(result)
+                result = tracking_model.track(
+                    frame, persist=True, tracker="bytetrack.yaml",
+                    conf=CONFIDENCE, imgsz=640, device=device, verbose=False,
+                )[0]
+                objects = boxes_from(result)
                 timestamp = i / fps
-                tracked = engine.update(obj, timestamp)
-                observations += len(obj)
-                alerts_active = sum(int(o.get("potential_jam", False)) for o in tracked)
-                rendered = overlay(frame, obj, f"TRACKING / {timestamp:05.1f}s / active flags: {alerts_active}", alerts_active)
-                x1, y1, x2, y2 = CONFIG.roi
+                tracked = engine.update(objects, timestamp)
+                observations += len(objects)
+                active_flags = sum(int(o.get("potential_jam", False)) for o in tracked)
+                rendered = overlay(frame, objects, f"TRACKING / {timestamp:05.1f}s / active flags: {active_flags}", active_flags)
+                x1, y1, x2, y2 = config_snapshot.roi
                 cv2.rectangle(rendered, (int(x1*width), int(y1*height)), (int(x2*width), int(y2*height)), (60, 193, 230), 2)
                 writer.write(rendered)
                 processed += 1
+
         if processed == 0:
             raise HTTPException(422, "No video frames processed")
+
+        # IMPORTANT: OpenCV must finalize the container before FFmpeg reads it.
+        writer.release()
+        writer = None
+        cap.release()
+        cap = None
+        if not intermediate_path.is_file() or intermediate_path.stat().st_size == 0:
+            raise HTTPException(500, "Tracking video output was empty")
+
+        command = [
+            ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+            "-i", str(intermediate_path),
+            "-map", "0:v:0", "-an", "-c:v", "libx264",
+            "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart", str(output_path),
+        ]
+        try:
+            conversion = subprocess.run(command, capture_output=True, text=True, timeout=180, check=False)
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(500, "H.264 video conversion timed out") from exc
+        except OSError as exc:
+            raise HTTPException(500, f"Cannot run FFmpeg: {exc}") from exc
+
+        if conversion.returncode != 0 or not output_path.is_file() or output_path.stat().st_size == 0:
+            error = (conversion.stderr or "Unknown FFmpeg error")[-1200:]
+            raise HTTPException(500, f"H.264 conversion failed: {error}")
+
         elapsed = time.perf_counter() - start
-        details = {"source_fps": round(fps, 2), "output_fps": round(fps / frame_stride, 2), "processed_frames": processed, "duration_seconds": round(frame_index / fps, 2), "tracking_observations": observations, "events": engine.events, "processing_fps": round(processed / max(elapsed, 0.001), 2), "config": CONFIG.model_dump(), "verified_jam_ground_truth": False}
-        record = save_record("video", file.filename or "uploaded video", observations, len(engine.events), elapsed, details, output_name)
+        details = {
+            "source_fps": round(fps, 2),
+            "output_fps": round(output_fps, 2),
+            "processed_frames": processed,
+            "duration_seconds": round(frame_index / fps, 2),
+            "tracking_observations": observations,
+            "events": engine.events,
+            "processing_fps": round(processed / max(elapsed, 0.001), 2),
+            "config": config_snapshot.model_dump(),
+            "video_codec": "h264",
+            "video_pixel_format": "yuv420p",
+            "verified_jam_ground_truth": False,
+        }
+        record = save_record(
+            "video", file.filename or "uploaded video", observations,
+            len(engine.events), elapsed, details, output_name,
+        )
+        finished = True
         return {**record, "artifact_url": f"/api/v1/artifacts/{output_name}"}
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
         if writer is not None:
             writer.release()
         upload_path.unlink(missing_ok=True)
-        if not output_path.is_file() or output_path.stat().st_size == 0:
+        intermediate_path.unlink(missing_ok=True)
+        if not finished:
             output_path.unlink(missing_ok=True)
