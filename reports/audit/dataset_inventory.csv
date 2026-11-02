@@ -1,0 +1,4 @@
+split,pairs,positives,boxes,negatives
+test,95,95,95,0
+train,2283,2283,2283,0
+valid,96,96,96,0

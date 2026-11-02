@@ -1,0 +1,4 @@
+video,source,frames_processed,processing_fps,potential_alerts,detector
+tracking_conveyor_annotated.mp4,tracking,500,25.258655381481823,0,pretrained_coco
+iron_boardcamera_iron_ore_annotated.mp4,iron,980,43.454644039757966,1,fine_tuned_iron_ore
+iron_boardcamera_iron_ore_2_annotated.mp4,iron,998,41.87702968359081,1,fine_tuned_iron_ore

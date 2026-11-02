@@ -1,0 +1,3 @@
+experiment,epochs_requested,best_path,best_bytes
+yolov8n,20,/kaggle/working/conveyorjam_day29_final/runs/yolov8n/weights/best.pt,6478378
+yolov8s,15,/kaggle/working/conveyorjam_day29_final/runs/yolov8s/weights/best.pt,22491242

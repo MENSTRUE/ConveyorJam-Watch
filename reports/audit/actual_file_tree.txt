@@ -1,0 +1,53 @@
+ConveyorJam Watch/
+|-- archives
+|   `-- ConveyorJam_Day29_FINAL_Research_Results.zip
+|-- assets
+|   |-- examples
+|   |   |-- images
+|   |   |   |-- annotation_gallery.png
+|   |   |   |-- iron_boardcamera_iron_ore_2_annotated_preview.png
+|   |   |   |-- iron_boardcamera_iron_ore_annotated_preview.png
+|   |   |   `-- tracking_conveyor_annotated_preview.png
+|   |   `-- videos
+|   |       |-- iron_boardcamera_iron_ore_2_annotated.mp4
+|   |       |-- iron_boardcamera_iron_ore_annotated.mp4
+|   |       `-- tracking_conveyor_annotated.mp4
+|   `-- plots
+|       `-- video_alert_timeline.png
+|-- docs
+|   `-- research
+|       `-- KAGGLE_OUTPUT_README.md
+|-- models
+|   `-- champion
+|       `-- conveyorjam_champion.pt
+|-- notebooks
+|   `-- conveyorjam-watch.ipynb
+`-- reports
+    |-- audit
+    |   |-- annotation_errors.csv
+    |   |-- dataset_inventory.csv
+    |   |-- kaggle_output_import.json
+    |   |-- kaggle_output_manifest.csv
+    |   |-- original_stem_overlap.json
+    |   |-- orphan_labels.csv
+    |   |-- sha_cross_split_audit.json
+    |   |-- source_provenance.csv
+    |   |-- test_pairs_manifest.csv
+    |   |-- train_pairs_manifest.csv
+    |   |-- valid_pairs_manifest.csv
+    |   `-- video_inventory.csv
+    |-- evaluation
+    |   |-- heldout_detection.json
+    |   |-- training_experiments.csv
+    |   `-- validation_selection.csv
+    |-- research
+    |   |-- claim_boundaries.json
+    |   |-- environment.json
+    |   `-- research_report.json
+    |-- tests
+    |   `-- dwell_unit_tests.csv
+    `-- video_analysis
+        |-- potential_jam_events_UNVERIFIED.csv
+        |-- selected_videos.csv
+        |-- video_processing_summary.csv
+        `-- video_timeline.csv

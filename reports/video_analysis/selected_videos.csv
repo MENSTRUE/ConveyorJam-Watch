@@ -1,0 +1,4 @@
+source,name,path,fps,duration_s,width,height,readable,frame_count
+tracking,conveyor.mp4,/kaggle/input/datasets/loliwibu/conveyorjam-dataset/tracking-video/project/ds0/video/conveyor.mp4,60.0,26.366666666666667,1920,1080,True,1582
+iron,boardcamera_iron_ore.mp4,/kaggle/input/datasets/loliwibu/conveyorjam-dataset/iron-ore/original-raw-videos/boardcamera_iron_ore.mp4,117.63163439702198,249.15916666666666,1280,720,True,29309
+iron,boardcamera_iron_ore_2.mp4,/kaggle/input/datasets/loliwibu/conveyorjam-dataset/iron-ore/original-raw-videos/boardcamera_iron_ore_2.mp4,119.68944533818284,35.7425,1280,720,True,4278

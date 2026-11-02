@@ -1,0 +1,149 @@
+{
+  "project": "ConveyorJam Watch \u2014 Day 29/100",
+  "timestamp_utc": "2026-11-02T01:23:33.657201+00:00",
+  "dataset_root": "/kaggle/input/datasets/loliwibu/conveyorjam-dataset",
+  "training_root": "/kaggle/input/datasets/loliwibu/conveyorjam-dataset/iron-ore/yolo-dataset-center",
+  "source_yaml": "/kaggle/input/datasets/loliwibu/conveyorjam-dataset/iron-ore/yolo-dataset-center/data.yaml",
+  "class_names": {
+    "0": "conveyor"
+  },
+  "seed": 42,
+  "split": "source-provided train/valid/test; held-out test not used for selection",
+  "source_pair_counts": [
+    {
+      "split": "test",
+      "pairs": 95,
+      "positives": 95,
+      "boxes": 95,
+      "negatives": 0
+    },
+    {
+      "split": "train",
+      "pairs": 2283,
+      "positives": 2283,
+      "boxes": 2283,
+      "negatives": 0
+    },
+    {
+      "split": "valid",
+      "pairs": 96,
+      "positives": 96,
+      "boxes": 96,
+      "negatives": 0
+    }
+  ],
+  "sampled_training_counts": {
+    "train": 2283,
+    "valid": 96,
+    "test": 95
+  },
+  "exact_cross_split_sha_groups": 0,
+  "possible_same_origin_name_groups": 0,
+  "models_trained": [
+    {
+      "experiment": "yolov8n",
+      "epochs_requested": 20,
+      "best_path": "/kaggle/working/conveyorjam_day29_final/runs/yolov8n/weights/best.pt",
+      "best_bytes": 6478378
+    },
+    {
+      "experiment": "yolov8s",
+      "epochs_requested": 15,
+      "best_path": "/kaggle/working/conveyorjam_day29_final/runs/yolov8s/weights/best.pt",
+      "best_bytes": 22491242
+    }
+  ],
+  "selection_metric": "validation mAP50:95",
+  "validation_candidates": [
+    {
+      "model": "yolov8n",
+      "path": "/kaggle/working/conveyorjam_day29_final/runs/yolov8n/weights/best.pt",
+      "val_mAP50_95": 0.9895312500000001,
+      "val_mAP50": 0.995,
+      "val_precision": 0.999441721220565,
+      "val_recall": 1.0
+    },
+    {
+      "model": "yolov8s",
+      "path": "/kaggle/working/conveyorjam_day29_final/runs/yolov8s/weights/best.pt",
+      "val_mAP50_95": 0.9905239143192489,
+      "val_mAP50": 0.995,
+      "val_precision": 0.999450054142127,
+      "val_recall": 1.0
+    }
+  ],
+  "champion": "yolov8s",
+  "heldout_detection": {
+    "champion": "yolov8s",
+    "test_images": 95,
+    "mAP50": 0.995,
+    "mAP50_95": 0.9847654345881871,
+    "precision": 1.0,
+    "recall": 1.0,
+    "source": "Iron Ore YOLO labeled source test",
+    "cross_video_independence_verified": false
+  },
+  "dwell_tests": [
+    {
+      "scenario": "moving",
+      "expected_alert": false,
+      "observed_alert": false,
+      "events": 0,
+      "passed": true
+    },
+    {
+      "scenario": "brief_stop",
+      "expected_alert": false,
+      "observed_alert": false,
+      "events": 0,
+      "passed": true
+    },
+    {
+      "scenario": "long_stop",
+      "expected_alert": true,
+      "observed_alert": true,
+      "events": 1,
+      "passed": true
+    }
+  ],
+  "video_demo": [
+    {
+      "video": "tracking_conveyor_annotated.mp4",
+      "source": "tracking",
+      "frames_processed": 500,
+      "processing_fps": 25.258655381481823,
+      "potential_alerts": 0,
+      "detector": "pretrained_coco"
+    },
+    {
+      "video": "iron_boardcamera_iron_ore_annotated.mp4",
+      "source": "iron",
+      "frames_processed": 980,
+      "processing_fps": 43.454644039757966,
+      "potential_alerts": 1,
+      "detector": "fine_tuned_iron_ore"
+    },
+    {
+      "video": "iron_boardcamera_iron_ore_2_annotated.mp4",
+      "source": "iron",
+      "frames_processed": 998,
+      "processing_fps": 41.87702968359081,
+      "potential_alerts": 1,
+      "detector": "fine_tuned_iron_ore"
+    }
+  ],
+  "potential_jam_events": 2,
+  "verified_real_jam_labels": false,
+  "real_jam_precision_recall_f1": null,
+  "limitations": [
+    "No real conveyor-jam event ground truth",
+    "Image-source near duplicates and source-video independence unverified",
+    "YOLO domain detection is not equivalent to jam detection",
+    "Dwell px/s threshold not calibrated to physical speed",
+    "Tracker ID switches and camera motion can invalidate dwell",
+    "COCO tracking video domain has different classes",
+    "Source licenses require verification before publishing or distributing",
+    "No live control, industrial safety or production validation"
+  ],
+  "deployment_ready": false
+}

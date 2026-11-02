@@ -1,0 +1,10 @@
+{
+  "champion": "yolov8s",
+  "test_images": 95,
+  "mAP50": 0.995,
+  "mAP50_95": 0.9847654345881871,
+  "precision": 1.0,
+  "recall": 1.0,
+  "source": "Iron Ore YOLO labeled source test",
+  "cross_video_independence_verified": false
+}

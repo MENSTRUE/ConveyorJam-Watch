@@ -1,0 +1,10 @@
+[
+  "No real conveyor-jam event ground truth",
+  "Image-source near duplicates and source-video independence unverified",
+  "YOLO domain detection is not equivalent to jam detection",
+  "Dwell px/s threshold not calibrated to physical speed",
+  "Tracker ID switches and camera motion can invalidate dwell",
+  "COCO tracking video domain has different classes",
+  "Source licenses require verification before publishing or distributing",
+  "No live control, industrial safety or production validation"
+]

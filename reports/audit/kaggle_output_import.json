@@ -1,0 +1,22 @@
+{
+  "project": "ConveyorJam Watch",
+  "day": 29,
+  "source_zip": "C:\\Users\\Asus\\OneDrive\\Pictures\\ConveyorJam_Day29_FINAL_Research_Results.zip",
+  "archived_zip": "archives/ConveyorJam_Day29_FINAL_Research_Results.zip",
+  "imported_at_utc": "2026-11-02T02:30:33.310514+00:00",
+  "zip_crc": "PASS",
+  "zip_file_count": 31,
+  "imported_count": 31,
+  "source_data": [
+    "Iron Ore Conveyor",
+    "Supervisely conveyor tracking",
+    "Camera-Based Conveyor Inspection Tracking"
+  ],
+  "task": "Conveyor object detection + ByteTrack + dwell-time heuristic",
+  "boundaries": [
+    "Detector class is conveyor, not jam",
+    "No verified real-world jam event accuracy",
+    "Cross-video leakage not fully audited",
+    "No production-readiness claim"
+  ]
+}

@@ -1,0 +1,4 @@
+scenario,expected_alert,observed_alert,events,passed
+moving,False,False,0,True
+brief_stop,False,False,0,True
+long_stop,True,True,1,True

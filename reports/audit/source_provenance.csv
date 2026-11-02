@@ -1,0 +1,4 @@
+source,role,license,jam_labels
+Iron Ore Conveyor dataset,detector training and industrial video,NOT_VERIFIED,False
+Supervisely conveyor video,tracking demonstration (man/bag),NOT_VERIFIED,False
+Camera-Based Conveyor Inspection Tracking,reference code/output only,NOT_VERIFIED,False
