@@ -1,0 +1,68 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js
+node_modules/
+frontend/dist/
+frontend/.vite/
+coverage/
+
+# Local environments and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Raw datasets and download caches
+dataset/
+datasets/
+data/raw/
+.cache/
+__MACOSX/
+*.incomplete
+
+# Models and weights
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.safetensors
+*.joblib
+*.pkl
+
+# Videos and large archives
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+
+# Experiment runtime artifacts
+runs/
+wandb/
+mlruns/
+lightning_logs/
+*.cache
+
+# System and IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Keep reproducible research evidence:
+# *.csv, *.json, *.png, *.md, *.ipynb
+# are intentionally NOT ignored.
