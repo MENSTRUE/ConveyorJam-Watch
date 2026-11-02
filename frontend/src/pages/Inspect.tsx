@@ -1,9 +1,12 @@
 import {useEffect, useRef, useState} from 'react';
 import {AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileVideo, Image as ImageIcon, Loader2, Scan, UploadCloud, X} from 'lucide-react';
-import {api, artifactUrl, errMessage, type RecordItem} from '../api';
+import {api, artifactUrl, errMessage, type RecordItem, type Health, type Devices} from '../api';
 import {PageHead, Panel} from '../App';
-export default function InspectPage({modelReady}:{modelReady:boolean}){
+export default function InspectPage({modelReady,health}:{modelReady:boolean;health:Health|null}){
  const [type,setType]=useState<'image'|'video'>('image');const [file,setFile]=useState<File|null>(null);const [preview,setPreview]=useState<string|null>(null);
+ const [devices,setDevices]=useState<Devices|null>(null);const [deviceBusy,setDeviceBusy]=useState(false);
+ useEffect(()=>{api.get<Devices>('/devices').then(r=>setDevices(r.data)).catch(()=>setDevices(null))},[]);
+ async function changeDevice(value:string){setDeviceBusy(true);setError('');try{const r=await api.post<Devices>('/devices',{device:value});setDevices(r.data)}catch(e){setError(errMessage(e))}finally{setDeviceBusy(false)}}
  const [seconds,setSeconds]=useState(25);const [stride,setStride]=useState(3);const [busy,setBusy]=useState(false);const [result,setResult]=useState<RecordItem|null>(null);const [error,setError]=useState('');const fileRef=useRef<HTMLInputElement>(null);
  useEffect(()=>{if(!file){setPreview(null);return;}const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url)},[file]);
  function choose(f:File|undefined){if(!f)return;const ok=type==='image'? /\.(png|jpe?g|webp)$/i.test(f.name):/\.(mp4|avi|mov|mkv)$/i.test(f.name);if(!ok){setError('Unsupported format for the selected analysis mode.');return;}setError('');setResult(null);setFile(f)}
@@ -11,6 +14,7 @@ export default function InspectPage({modelReady}:{modelReady:boolean}){
  async function analyze(){if(!file)return;setBusy(true);setError('');setResult(null);const data=new FormData();data.append('file',file);if(type==='video'){data.append('max_seconds',String(seconds));data.append('frame_stride',String(stride));}try{const res=await api.post<RecordItem>(`/analyze/${type}`,data,{timeout:0});setResult(res.data)}catch(e){setError(errMessage(e))}finally{setBusy(false)}}
  return <><PageHead kicker="VISUAL INTELLIGENCE / 02" title="Inspection studio." description="Upload real operational media. Detect conveyor regions, inspect tracking behavior, and review unverified dwell-time flags."/>
  <div className="inspect-switch"><button className={type==='image'?'selected':''} onClick={()=>changeType('image')}><ImageIcon size={18}/> Image detection</button><button className={type==='video'?'selected':''} onClick={()=>changeType('video')}><FileVideo size={18}/> Video tracking</button></div>
+ <div className="compute-toolbar"><div><strong>Inference accelerator</strong><span>{devices?.cuda_available ? `CUDA detected: ${devices.gpu_name}` : 'CUDA not detected by current Python/PyTorch environment'}</span></div><select aria-label="Inference device" value={devices?.selection||health?.device_selection||'auto'} disabled={deviceBusy||busy||!devices} onChange={e=>changeDevice(e.target.value)}><option value="auto">Auto (recommended)</option><option value="cpu">CPU</option><option value="cuda:0" disabled={!devices?.cuda_available}>NVIDIA GPU · CUDA{!devices?.cuda_available?' (unavailable)':''}</option></select><small>Active: {devices?.effective_device||health?.device||'checking'}</small></div>
  {!modelReady&&<div className="warning-banner"><AlertTriangle size={19}/> Champion weights not detected by the backend. Add <code>models/champion/conveyorjam_champion.pt</code> locally before running inference.</div>}
  <div className="inspect-layout"><div className="inspect-left"><Panel title="Input source" sub={type==='image'?'JPG, PNG or WebP · max 16 MB':'MP4, AVI, MOV or MKV · max 150 MB'}>
  <div className={'dropzone '+(file?'has-file':'')} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();choose(e.dataTransfer.files[0])}} onClick={()=>fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter')fileRef.current?.click()}}>

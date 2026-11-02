@@ -28,7 +28,35 @@ MAX_VIDEO_BYTES = int(os.getenv("MAX_VIDEO_MB", "150")) * 1024**2
 MAX_VIDEO_SECONDS = float(os.getenv("MAX_VIDEO_SECONDS", "60"))
 CONFIDENCE = float(os.getenv("CONVEYOR_CONF", "0.25"))
 FRAME_STRIDE = max(1, int(os.getenv("FRAME_STRIDE", "3")))
-DEVICE = os.getenv("YOLO_DEVICE", "cpu")
+DEVICE = os.getenv("YOLO_DEVICE", "auto").strip().lower()
+if DEVICE not in {"auto", "cpu", "cuda:0"}:
+    DEVICE = "auto"
+
+
+def compute_capabilities() -> dict:
+    try:
+        import torch
+        available = bool(torch.cuda.is_available())
+        return {
+            "cuda_available": available,
+            "gpu_name": str(torch.cuda.get_device_name(0)) if available else None,
+            "torch_version": str(torch.__version__),
+            "torch_cuda_version": str(torch.version.cuda) if torch.version.cuda else None,
+        }
+    except Exception:
+        return {"cuda_available": False, "gpu_name": None, "torch_version": None, "torch_cuda_version": None}
+
+
+def resolved_device() -> str:
+    caps = compute_capabilities()
+    if DEVICE == "cuda:0" and not caps["cuda_available"]:
+        raise HTTPException(409, "CUDA GPU unavailable. Install a CUDA-enabled PyTorch build or switch to CPU.")
+    return "cuda:0" if DEVICE == "auto" and caps["cuda_available"] else ("cpu" if DEVICE == "auto" else DEVICE)
+
+
+class DeviceSelection(BaseModel):
+    device: str
+
 
 app = FastAPI(title="ConveyorJam Watch API", version="1.0.0", description="Research prototype: conveyor detection, tracking and heuristic anomaly flags")
 origins = [s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if s.strip()]
@@ -201,7 +229,26 @@ class DwellEngine:
 
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "model_ready": MODEL_PATH.is_file(), "model_loaded": _model is not None, "model_path": str(MODEL_PATH), "model_error": _model_error, "device": DEVICE, "service": "ConveyorJam Watch", "mode": "research-prototype", "timestamp": now()}
+    return {"status": "ok", "model_ready": MODEL_PATH.is_file(), "model_loaded": _model is not None, "model_path": str(MODEL_PATH), "model_error": _model_error, "device": resolved_device() if DEVICE != "cuda:0" or compute_capabilities()["cuda_available"] else "unavailable", "device_selection": DEVICE, "compute": compute_capabilities(), "service": "ConveyorJam Watch", "mode": "research-prototype", "timestamp": now()}
+
+
+@app.get("/api/v1/devices")
+def devices():
+    caps = compute_capabilities()
+    return {"selection": DEVICE, "effective_device": resolved_device() if DEVICE != "cuda:0" or caps["cuda_available"] else "unavailable", **caps, "options": ["auto", "cpu"] + (["cuda:0"] if caps["cuda_available"] else [])}
+
+
+@app.post("/api/v1/devices")
+def device_set(request: DeviceSelection):
+    global DEVICE
+    selection = request.device.strip().lower()
+    if selection not in {"auto", "cpu", "cuda:0"}:
+        raise HTTPException(422, "Choose auto, cpu, or cuda:0")
+    with _model_lock:
+        if selection == "cuda:0" and not compute_capabilities()["cuda_available"]:
+            raise HTTPException(409, "CUDA GPU unavailable with the current PyTorch installation")
+        DEVICE = selection
+    return devices()
 
 
 @app.get("/api/v1/config")
@@ -259,10 +306,11 @@ async def analyze_image(file: UploadFile = File(...)):
         raise HTTPException(422, "Image decoding failed")
     if image.shape[0] * image.shape[1] > 30_000_000:
         raise HTTPException(413, "Image dimensions too large")
+    device = resolved_device()
     model = get_model()
     start = time.perf_counter()
     with _model_lock:
-        result = model.predict(image, conf=CONFIDENCE, imgsz=640, device=DEVICE, verbose=False)[0]
+        result = model.predict(image, conf=CONFIDENCE, imgsz=640, device=device, verbose=False)[0]
     objects = boxes_from(result)
     rendered = overlay(image, objects, f"CONVEYOR SCAN / {len(objects)} objects")
     artifact_name = uuid.uuid4().hex[:16] + ".jpg"
@@ -283,6 +331,7 @@ async def analyze_video(file: UploadFile = File(...), max_seconds: float = Form(
     raw = await read_upload(file, MAX_VIDEO_BYTES)
     suffix = Path(file.filename or "video.mp4").suffix.lower()
     upload_path = DATA_DIR / (uuid.uuid4().hex[:16] + suffix)
+    device = resolved_device()
     model = get_model()
     upload_path.write_bytes(raw)
     cap = cv2.VideoCapture(str(upload_path))
@@ -318,7 +367,7 @@ async def analyze_video(file: UploadFile = File(...), max_seconds: float = Form(
                 frame_index += 1
                 if i % frame_stride:
                     continue
-                result = tracking_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=CONFIDENCE, imgsz=640, device=DEVICE, verbose=False)[0]
+                result = tracking_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=CONFIDENCE, imgsz=640, device=device, verbose=False)[0]
                 obj = boxes_from(result)
                 timestamp = i / fps
                 tracked = engine.update(obj, timestamp)
